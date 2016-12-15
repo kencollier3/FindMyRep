@@ -1,0 +1,186 @@
+buildscript {
+    repositories {
+        jcenter()
+    }
+
+    dependencies {
+        classpath 'com.android.tools.build:gradle:2.2.3'
+        classpath 'com.github.ben-manes:gradle-versions-plugin:0.13.0' // version plugin support
+        classpath 'com.neenbedankt.gradle.plugins:android-apt:1.8'
+        classpath 'com.google.gms:google-services:3.0.0'
+    }
+}
+
+plugins {
+    id "org.sonarqube" version "2.1" // https://plugins.gradle.org/plugin/org.sonarqube
+}
+
+apply plugin: 'com.android.application'
+apply plugin: 'com.github.ben-manes.versions' // ./gradlew dependencyUpdates -Drevision=release
+apply plugin: 'sonar-runner'
+apply plugin: 'android-apt'
+
+repositories {
+    jcenter()
+}
+
+def versionMajor = 1
+def versionMinor = 0
+def versionPatch = 0
+def versionBuild = 0
+def versionMajorMinorPatchBuild = "${versionMajor}.${versionMinor}.${versionPatch}.${versionBuild}"
+def versionString = "${versionMajor}.${versionMinor}.${versionPatch}"
+def versionStringFull = "${versionMajor}.${versionMinor}.${versionPatch}.${versionBuild}"
+
+android {
+    compileSdkVersion 25
+    buildToolsVersion "24.0.3"
+
+    defaultConfig {
+        applicationId "agency.rain.findmyrep"
+        minSdkVersion 16
+        targetSdkVersion 25
+        versionCode 1
+        versionName "1.0"
+        multiDexEnabled true
+        vectorDrawables.useSupportLibrary = true
+        testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
+    }
+
+    // set dummy signing values if not defined in ~/.gradle/gradle.properties
+    if (!project.hasProperty('FindMyRepKeyStoreFile')) {
+        println "Using dummy signing values"
+        project.ext.setProperty('FindMyRepKeyStoreFile', 'dummy.keystore')
+        project.ext.setProperty('FindMyRepKeyStorePassword', 'dummy!')
+        project.ext.setProperty('FindMyRepKeyAlias', 'dummy')
+        project.ext.setProperty('FindMyRepKeyPassword', 'dummy!')
+    }
+
+    // defined on the build server in the /usr/share/tomcat/.gradle/gradle.properties
+    signingConfigs {
+        release {
+            storeFile file(FindMyRepKeyStoreFile)
+            storePassword FindMyRepKeyStorePassword
+            keyAlias FindMyRepKeyAlias
+            keyPassword FindMyRepKeyPassword
+        }
+        lwa {
+            storeFile file('keystore.jks')
+            keyAlias 'androiddebugkey'
+            keyPassword 'android'
+            storePassword 'android'
+        }
+    }
+
+    packagingOptions {
+        exclude 'META-INF/DEPENDENCIES.txt'
+        exclude 'META-INF/LICENSE.txt'
+        exclude 'META-INF/NOTICE.txt'
+        exclude 'META-INF/NOTICE'
+        exclude 'META-INF/LICENSE'
+        exclude 'META-INF/DEPENDENCIES'
+        exclude 'META-INF/notice.txt'
+        exclude 'META-INF/license.txt'
+        exclude 'META-INF/dependencies.txt'
+        exclude 'META-INF/LGPL2.1'
+    }
+
+    buildTypes {
+        release {
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            buildConfigField "String", "VERSION_NAME_FULL", "\"${versionString}\""
+            signingConfig signingConfigs.release
+        }
+        debug {
+            versionNameSuffix '-DEV'
+            buildConfigField "String", "VERSION_NAME_FULL", "\"${versionStringFull}${versionNameSuffix}\""
+        }
+        beta {
+            versionNameSuffix '-BETA'
+            //noinspection GroovyAssignabilityCheck
+            signingConfig android.signingConfigs.debug
+            zipAlignEnabled true
+            buildConfigField "String", "VERSION_NAME_FULL", "\"${versionStringFull}${versionNameSuffix}\""
+        }
+    }
+
+    lintOptions {
+        abortOnError false
+    }
+}
+
+ext {
+    // versions for libraries that multiple dependencies
+    supportLibVersion = '25.0.1'
+    dagger = '2.7'
+    butterknife = '8.4.0'
+    pocketknife = '3.2.1'
+}
+
+dependencies {
+    // Support Libraries
+    compile "com.android.support:appcompat-v7:${supportLibVersion}"
+    compile "com.android.support:preference-v7:${supportLibVersion}"
+    compile "com.android.support:design:${supportLibVersion}"
+    compile "com.android.support:cardview-v7:${supportLibVersion}"
+    compile "com.android.support:recyclerview-v7:${supportLibVersion}"
+    compile "com.android.support:support-v4:${supportLibVersion}"
+
+    // Dependency Injection dependencies
+    compile "com.google.dagger:dagger:${dagger}"
+    apt "com.google.dagger:dagger-compiler:${dagger}"
+
+    // View Binding
+    compile "com.jakewharton:butterknife:${butterknife}"
+    apt "com.jakewharton:butterknife-compiler:${butterknife}"
+
+    compile "com.vikingsen:pocketknife-core:${pocketknife}"
+    apt "com.vikingsen:pocketknife-compiler:${pocketknife}"
+
+    // Unit Testing
+    androidTestCompile('com.android.support.test.espresso:espresso-core:2.2.2', {
+        exclude group: 'com.android.support', module: 'support-annotations'
+    })
+
+    //Retrofit
+    compile 'com.google.code.gson:gson:2.6.2'
+    compile 'com.squareup.retrofit2:retrofit:2.1.0'
+    compile 'com.squareup.retrofit2:converter-gson:2.1.0'
+
+    //Retrofit Converter
+    compile "com.squareup.retrofit2:converter-jackson:2.1.0"
+
+    // UI
+    compile 'com.devbrackets.android:recyclerext:2.0.1'
+}
+
+sonarqube { //./gradlew sonarqube aDebug
+    properties {
+        if (!project.hasProperty("rainSonarHostUrl")) {
+            println '!!!! Rain Sonar properties must be set in your gradle.properties !!!!'
+            return
+        }
+
+        // Project Information
+        property "sonar.projectKey", "FindMyRep"
+        property "sonar.projectName", "FindMyRep"
+        property "sonar.projectVersion", versionMajorMinorPatchBuild
+
+        // Sonar Information
+        property "sonar.host.url", rainSonarHostUrl
+        property "sonar.jdbc.url", rainSonarJdbcUrl
+        property "sonar.jdbc.driverClassName", rainSonarJdbcDriver
+        property "sonar.jdbc.username", rainSonarUsername
+        property "sonar.jdbc.password", rainSonarPassword
+
+        properties["sonar.sources"] = "src/main" //android.sourceSets.main.java.srcDirs
+        properties["sonar.tests"] = android.sourceSets.androidTest.java.srcDirs
+
+        if (file("build/intermediates/classes/debug").exists()) {
+            properties["sonar.binaries"] = [file("build/intermediates/classes/debug")]
+        }
+        if (file("build/intermediates/classes/beta").exists()) {
+            properties["sonar.binaries"] = [file("build/intermediates/classes/beta")]
+        }
+    }
+}

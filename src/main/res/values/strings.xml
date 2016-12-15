@@ -1,0 +1,10 @@
+<resources>
+    <string name="app_name">Find My Rep</string>
+    <string name="find_your_representatives">Find Your Representatives</string>
+    <string name="spinner_title">Select Your State</string>
+    <string name="party_text">Party: %1$s</string>
+    <string name="district_text">District: %1$s</string>
+    <string name="state_select_prompt">Select Your State</string>
+    <string name="beginning_of_address">Address: %1$s</string>
+    <string name="end_of_address">%2$d Washington, DC</string>
+</resources>
